@@ -1,0 +1,14 @@
+/front/node_modules
+/back/front_modules
+/back/.env
+
+/front/build 
+/back/build
+
+/front/.git
+/back/.git
+*/.git
+
+*/node_modules
+.idea
+/.idea
