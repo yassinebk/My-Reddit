@@ -4,7 +4,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "gen": "graphql-codegen --config codegen.yml"
+    "gen": "graphql-codegen gen"
   },
   "dependencies": {
     "@chakra-ui/icons": "^1.0.0",
@@ -22,7 +22,8 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-is": "^17.0.2",
-    "urql": "^2.0.4"
+    "urql": "^2.0.4",
+    "wonka": "^4.0.15"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "2.0.1",

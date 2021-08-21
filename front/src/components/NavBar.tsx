@@ -33,7 +33,8 @@ export const NavBar: React.FC<NavBarProps> = ({}) => {
       </HStack>;
   }
   return (
-    <Flex bg="tomato" p={4} ml="auto">
+    <Flex bg="tomato" p={4} ml="auto" width="full"
+    mb={4}  zIndex={1} position="sticky">
       <Box ml="auto" color="blue.600" fontSize={18}>
         {body}
       </Box>

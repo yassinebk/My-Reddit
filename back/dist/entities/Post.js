@@ -10,37 +10,48 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Post = void 0;
-const core_1 = require("@mikro-orm/core");
 const type_graphql_1 = require("type-graphql");
-let Post = class Post {
-    constructor() {
-        this.createdAt = new Date();
-        this.updatedAt = new Date();
-    }
+const typeorm_1 = require("typeorm");
+const User_1 = require("./User");
+let Post = class Post extends typeorm_1.BaseEntity {
 };
 __decorate([
     type_graphql_1.Field(() => type_graphql_1.Int),
-    core_1.PrimaryKey(),
+    typeorm_1.PrimaryGeneratedColumn(),
     __metadata("design:type", Number)
 ], Post.prototype, "id", void 0);
 __decorate([
-    type_graphql_1.Field(() => String),
-    core_1.Property({ type: "date" }),
-    __metadata("design:type", Object)
-], Post.prototype, "createdAt", void 0);
+    type_graphql_1.Field(() => type_graphql_1.Int),
+    typeorm_1.Column(),
+    __metadata("design:type", Number)
+], Post.prototype, "creatorId", void 0);
 __decorate([
-    type_graphql_1.Field(() => String),
-    core_1.Property({ type: "date", onUpdate: () => new Date() }),
-    __metadata("design:type", Object)
-], Post.prototype, "updatedAt", void 0);
+    typeorm_1.ManyToOne(() => User_1.User, user => user.posts),
+    __metadata("design:type", User_1.User)
+], Post.prototype, "creator", void 0);
 __decorate([
-    type_graphql_1.Field(() => String),
-    core_1.Property({ type: "text" }),
+    type_graphql_1.Field(),
+    typeorm_1.Column({ type: "text" }),
     __metadata("design:type", String)
 ], Post.prototype, "title", void 0);
+__decorate([
+    type_graphql_1.Field(),
+    typeorm_1.Column({ type: 'text', default: 0 }),
+    __metadata("design:type", String)
+], Post.prototype, "text", void 0);
+__decorate([
+    type_graphql_1.Field(),
+    typeorm_1.CreateDateColumn(),
+    __metadata("design:type", Date)
+], Post.prototype, "createdAt", void 0);
+__decorate([
+    type_graphql_1.Field(),
+    typeorm_1.UpdateDateColumn(),
+    __metadata("design:type", Date)
+], Post.prototype, "updatedAt", void 0);
 Post = __decorate([
     type_graphql_1.ObjectType(),
-    core_1.Entity()
+    typeorm_1.Entity()
 ], Post);
 exports.Post = Post;
 //# sourceMappingURL=Post.js.map

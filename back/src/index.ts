@@ -1,7 +1,5 @@
 import "reflect-metadata"
-import { MikroORM } from "@mikro-orm/core"
 import { __dev__, PORT, COOKIE_NAME } from "./constants";
-import microConfig from "./mikro-orm.config"
 import express from "express";
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
@@ -12,25 +10,33 @@ import session from "express-session";
 import connectRedis from "connect-redis";
 import { MyContext } from "./types";
 import cors from "cors"
-
+import { createConnection } from "typeorm";
+import { User } from "./entities/User";
+import { Post } from "./entities/Post";
 
 
 const main = async () => {
+    const conn = await createConnection(
+        {
+            type: "postgres",
+            database: "lireddit2",
+            password: "password",
+            username: "askee",
+            logging: true,
+            synchronize: true,
+            entities: [User, Post]
+        }
+    );
 
-    //sendEmail("yassinebk23@gmail.com", "hello there");
-    const orm = await MikroORM.init(microConfig);
-    orm.getMigrator().up();
-    /* After updating the DB schema uncomment this line to initialize*/
-    // orm.getSchemaGenerator().updateSchema();
 
     const app = express();
     app.use(cors({
-        origin: 'http://localhost:3000',
+        origin: ['http://localhost:3000', "https://studio.apollographql.com"],
         credentials: true,
     }));
 
     const RedisStore = connectRedis(session);
-    const redis =new  Redis();
+    const redis = new Redis();
 
 
     app.use(
@@ -44,7 +50,7 @@ const main = async () => {
             cookie: {
                 maxAge: 1000 * 60 * 60 * 24 * 15,//15 days
                 httpOnly: true,
-                sameSite: "lax",//CSRF,
+                sameSite: "none",//CSRF,
                 secure: false//cookkie only works in https
             },
             secret: "asdlfkadsdsafaksdjfdskjf",
@@ -58,12 +64,12 @@ const main = async () => {
             validate: false,
         }),
         debug: true,
-        context: ({ req, res }): MyContext => ({ em: orm.em, req, res,redis })
+        context: ({ req, res }): MyContext => ({ req, res, redis })
     })
     await apolloServer.start();
     apolloServer.applyMiddleware({
         app,
-        cors: { origin: "http://localhost:3000" }
+        cors: { origin: ["http://localhost:3000", "https://studio.apollographql.com"] }
     });
 
     app.get('/', (_, res) => {

@@ -39,6 +39,7 @@ const constants_1 = require("../constants");
 const User_1 = require("../entities/User");
 const sendEmail_1 = require("../utils/sendEmail");
 const uuid_1 = require("uuid");
+const typeorm_1 = require("typeorm");
 let UsernamePasswordInput = class UsernamePasswordInput {
 };
 __decorate([
@@ -84,7 +85,7 @@ UserResponse = __decorate([
     type_graphql_1.ObjectType()
 ], UserResponse);
 let UserResolver = class UserResolver {
-    async register(options, { em, req }) {
+    async register(options, { req }) {
         const errors = validateRegister_1.validateRegister(options);
         if (errors) {
             return { errors };
@@ -92,18 +93,14 @@ let UserResolver = class UserResolver {
         const hashedPAssword = await argon2.hash(options.password);
         let user;
         try {
-            const result = await em
-                .createQueryBuilder(User_1.User)
-                .getKnexQuery()
-                .insert({
+            const result = await typeorm_1.getConnection().
+                createQueryBuilder().insert().into(User_1.User)
+                .values({
                 username: options.username,
                 email: options.email,
                 password: hashedPAssword,
-                created_at: new Date(),
-                updated_at: new Date(),
-            })
-                .returning("*");
-            user = result[0];
+            }).returning("*").execute();
+            user = result.raw[0];
         }
         catch (e) {
             if (e.detail.includes("already exists")) {
@@ -121,13 +118,12 @@ let UserResolver = class UserResolver {
             }
         }
         req.session.userId = user.id;
-        console.log("i am here", user);
-        return { user };
+        return {
+            user
+        };
     }
-    async login(usernameOrEmail, password, { em, req }) {
-        const user = await em.findOne(User_1.User, usernameOrEmail.includes("@")
-            ? { email: usernameOrEmail }
-            : { username: usernameOrEmail });
+    async login(usernameOrEmail, password, { req }) {
+        const user = await User_1.User.findOne({ where: usernameOrEmail.includes("@") ? { email: usernameOrEmail } : { username: usernameOrEmail } });
         console.log("user", user);
         if (!user) {
             return {
@@ -166,39 +162,39 @@ let UserResolver = class UserResolver {
             resolve(true);
         }));
     }
-    async me({ req, em }) {
+    async me({ req }) {
         console.log("req", req.session);
         if (!req.session.userId) {
             return null;
         }
-        const user = await em.findOne(User_1.User, { id: req.session.userId });
-        return user;
+        return User_1.User.findOne({ id: req.session.userId });
     }
-    async forgotPassword(email, { em, redis }) {
-        const user = await em.findOne(User_1.User, { email });
+    async forgotPassword(email, { redis }) {
+        const user = await User_1.User.findOne({ where: { email } });
         if (!user) {
             return true;
         }
         const token = uuid_1.v4();
         redis.set(constants_1.FORGET_PASSWORD_PREFIX + token, user.id, 'ex', 1000 * 60 * 60 * 3);
         const resetPasswordLink = `<a href='http://localhost:3000/change-password/${token}'> resetPassword</a>`;
-        sendEmail_1.sendEmail(email, resetPasswordLink);
+        await sendEmail_1.sendEmail(email, resetPasswordLink);
         return true;
     }
-    async changePassword(token, newPassword, { em, redis, req }) {
+    async changePassword(token, newPassword, { redis, req }) {
         if (newPassword.length <= 2) {
             return {
                 errors: [
                     {
                         field: "newPassword",
-                        message: "length must be greater tha 2 "
+                        message: "length must be greater than 2 "
                     }
                 ]
             };
         }
         ;
-        const userId = await redis.get(constants_1.FORGET_PASSWORD_PREFIX + token);
-        if (!userId) {
+        const key = constants_1.FORGET_PASSWORD_PREFIX + token;
+        const userIdKey = await redis.get(key);
+        if (!userIdKey) {
             return {
                 errors: [{
                         field: "token",
@@ -207,7 +203,8 @@ let UserResolver = class UserResolver {
             };
         }
         ;
-        const user = await em.findOne(User_1.User, { id: parseInt(userId) });
+        const userId = parseInt(userIdKey);
+        const user = await User_1.User.findOne(userId);
         if (!user) {
             return {
                 errors: [{
@@ -218,8 +215,9 @@ let UserResolver = class UserResolver {
         }
         ;
         user.password = await argon2.hash(newPassword);
-        em.persistAndFlush(user);
+        User_1.User.update({ id: userId }, { password: newPassword });
         req.session.userId = user.id;
+        await redis.del(key);
         return { user };
     }
 };
