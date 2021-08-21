@@ -5,11 +5,13 @@ import {
     Arg,
     Ctx,
     Field,
+    FieldResolver,
     InputType,
     Mutation,
     ObjectType,
     Query,
     Resolver,
+    Root,
 } from "type-graphql";
 import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from "../constants";
 import { User } from "../entities/User";
@@ -45,6 +47,15 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
+
+    @FieldResolver(() => String)
+    email(@Root() user: User, @Ctx() { req }: MyContext) {
+        //this is the current user 
+        if (req.session.userId === user.id)
+            return user.email
+        return "";
+    }
+
     @Mutation(() => UserResponse)
     async register(
         @Arg("options") options: UsernamePasswordInput,
@@ -119,7 +130,9 @@ export class UserResolver {
             };
         }
 
+        console.log('user', user)
         req.session!.userId = user.id;
+        console.log('session', req.session)
 
         return {
             user,

@@ -30,18 +30,50 @@ __decorate([
 PostInput = __decorate([
     type_graphql_1.InputType()
 ], PostInput);
+let PaginationPosts = class PaginationPosts {
+};
+__decorate([
+    type_graphql_1.Field(() => [Post_1.Post]),
+    __metadata("design:type", Array)
+], PaginationPosts.prototype, "posts", void 0);
+__decorate([
+    type_graphql_1.Field(() => Boolean),
+    __metadata("design:type", Boolean)
+], PaginationPosts.prototype, "hasMore", void 0);
+PaginationPosts = __decorate([
+    type_graphql_1.ObjectType()
+], PaginationPosts);
+;
 let PostResolver = class PostResolver {
+    textSnippet(root) {
+        return (root.text.slice(0, 50) + ". . . ");
+    }
     async posts(limit, cursor) {
         const realLimit = Math.min(50, limit);
-        const qb = typeorm_1.getConnection()
-            .getRepository(Post_1.Post)
-            .createQueryBuilder("p")
-            .orderBy('"createdAt"', 'DESC')
-            .take(realLimit);
+        console.log(realLimit);
+        const realLimitPlusOne = realLimit + 1;
+        const replacements = [realLimitPlusOne];
         if (cursor) {
-            qb.where('"createdAt"<:cursor', { cursor: new Date(parseInt(cursor)) });
+            replacements.push(new Date(parseInt(cursor)));
         }
-        return qb.getMany();
+        console.log(cursor);
+        const posts = await typeorm_1.getConnection().query(`
+            SELECT p.* ,
+            json_build_object(
+                'username',u.username,
+                'id',u.id,
+                'email',u.email,
+                'createdAt',u."createdAt",
+                'updatedAt',u."updatedAt"
+                ) creator
+             FROM post p
+            INNER JOIN public.user u on u.id=p."creatorId"
+            ${cursor ? `WHERE p."createdAt"<$2` : ''}
+            ORDER BY p."createdAt" DESC 
+            LIMIT $1
+            `, replacements);
+        console.log('posts', posts);
+        return { posts: posts.slice(0, realLimit), hasMore: posts.length === (limit + 1) };
     }
     post(id) {
         console.log(id);
@@ -74,7 +106,14 @@ let PostResolver = class PostResolver {
     }
 };
 __decorate([
-    type_graphql_1.Query(() => [Post_1.Post]),
+    type_graphql_1.FieldResolver(() => String),
+    __param(0, type_graphql_1.Root()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Post_1.Post]),
+    __metadata("design:returntype", void 0)
+], PostResolver.prototype, "textSnippet", null);
+__decorate([
+    type_graphql_1.Query(() => PaginationPosts),
     __param(0, type_graphql_1.Arg('limit', () => type_graphql_1.Int, { nullable: false })),
     __param(1, type_graphql_1.Arg('cursor', () => String, { nullable: true })),
     __metadata("design:type", Function),
@@ -114,7 +153,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "deletePost", null);
 PostResolver = __decorate([
-    type_graphql_1.Resolver()
+    type_graphql_1.Resolver(Post_1.Post)
 ], PostResolver);
 exports.PostResolver = PostResolver;
 //# sourceMappingURL=post.js.map

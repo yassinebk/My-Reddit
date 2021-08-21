@@ -17,6 +17,7 @@ const cors_1 = __importDefault(require("cors"));
 const typeorm_1 = require("typeorm");
 const User_1 = require("./entities/User");
 const Post_1 = require("./entities/Post");
+const path_1 = __importDefault(require("path"));
 const main = async () => {
     const conn = await typeorm_1.createConnection({
         type: "postgres",
@@ -24,9 +25,11 @@ const main = async () => {
         password: "password",
         username: "askee",
         logging: true,
+        migrations: [path_1.default.join(__dirname, "./migrations/*")],
         synchronize: true,
         entities: [User_1.User, Post_1.Post]
     });
+    await conn.runMigrations({ transaction: "all" });
     const app = express_1.default();
     app.use(cors_1.default({
         origin: ['http://localhost:3000', "https://studio.apollographql.com"],

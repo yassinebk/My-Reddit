@@ -1,6 +1,6 @@
 import { isAuth } from "../middlewares/isAuth";
 import { MyContext } from "src/types";
-import { Arg, Int, Query, Mutation, Resolver, InputType, Field, Ctx, UseMiddleware } from "type-graphql";
+import { Arg, Int, Query, Mutation, Resolver, InputType, Field, Ctx, UseMiddleware, FieldResolver, Root, ObjectType } from "type-graphql";
 import { Post } from "../entities/Post";
 import { getConnection } from "typeorm";
 
@@ -13,27 +13,77 @@ class PostInput {
     text: string
 }
 
+@ObjectType()
+class PaginationPosts {
+    @Field(() => [Post])
+    posts: Post[]
+    @Field(() => Boolean)
+    hasMore: boolean
+};
 
-@Resolver()
+@Resolver(Post)
 export class PostResolver {
 
+    @FieldResolver(() => String)
+    textSnippet(
+        @Root() root: Post,
+    ) {
+        return (root.text.slice(0, 50) + ". . . ")
+    }
 
-    @Query(() => [Post]!)
+
+
+
+    @Query(() => PaginationPosts)
     async posts(
         @Arg('limit', () => Int, { nullable: false }) limit: number,
         @Arg('cursor', () => String, { nullable: true }) cursor: string | null
-    ): Promise<Post[]> {
+    ): Promise<PaginationPosts> {
         //await sleep(5000);
         const realLimit = Math.min(50, limit);
-        const qb = getConnection()
-            .getRepository(Post)
-            .createQueryBuilder("p")
-            .orderBy('"createdAt"', 'DESC')
-            .take(realLimit)
+        console.log(realLimit);
+        const realLimitPlusOne = realLimit + 1;
+
+        //we will fetch one post more if the operation succeeds we got more posts in the db
+        const replacements: any = [realLimitPlusOne];
         if (cursor) {
-            qb.where('"createdAt"<:cursor', { cursor: new Date(parseInt(cursor)) })
+            replacements.push(new Date(parseInt(cursor)))
         }
-        return qb.getMany();
+        console.log(cursor);
+
+        const posts = await getConnection().query(
+            `
+            SELECT p.* ,
+            json_build_object(
+                'username',u.username,
+                'id',u.id,
+                'email',u.email,
+                'createdAt',u."createdAt",
+                'updatedAt',u."updatedAt"
+                ) creator
+             FROM post p
+            INNER JOIN public.user u on u.id=p."creatorId"
+            ${cursor ? `WHERE p."createdAt"<$2` : ''}
+            ORDER BY p."createdAt" DESC 
+            LIMIT $1
+            `
+            , replacements)
+        console.log('posts', posts);
+
+        /* .getRepository(Post)
+        .createQueryBuilder("p")
+        .innerJoinAndSelect("p.creator", "u", 'u.id=p."creatorId"')
+        .orderBy('p."createdAt"', 'DESC')
+        .take(realLimitPlusOne)
+     if (cursor) {
+        qb.where('"createdAt" < :cursor', {
+            cursor: new Date(parseInt(cursor)),
+        });
+    }
+*/
+
+
+        return { posts: posts.slice(0, realLimit), hasMore: posts.length === (limit + 1) };
     }
 
 
