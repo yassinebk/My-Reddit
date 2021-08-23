@@ -16,6 +16,7 @@ import {
 } from "type-graphql";
 import { Post } from "../entities/Post";
 import { getConnection } from "typeorm";
+import { User } from "../entities/User";
 
 @InputType()
 class PostInput {
@@ -68,7 +69,7 @@ export class PostResolver {
                 ) creator
              FROM post p
             INNER JOIN public.user u on u.id=p."creatorId"
-            ${cursor ? `WHERE p."createdAt"<$2` : ""}
+            ${cursor ? `WHERE p."createdAt"< $2` : ""}
             ORDER BY p."createdAt" DESC 
             LIMIT $1
             `,

@@ -1,12 +1,17 @@
 import {
+  border,
   Box,
   Button,
   Flex,
   Heading,
+  HStack,
+  IconButton,
   Spinner,
   Text,
+  useToken,
   VStack,
 } from "@chakra-ui/react";
+import { ChevronDownIcon, ChevronUpIcon } from "@chakra-ui/icons";
 import { withUrqlClient } from "next-urql";
 import NextLink from "next/link";
 import React, { useState } from "react";
@@ -14,31 +19,49 @@ import { NavBar } from "../components/NavBar";
 import { Wrapper } from "../components/Wrapper";
 import { usePostsQuery } from "../generated/graphql";
 import { createUrqlClient } from "../utils/createUrqlClient";
+import { UpdootSection } from "./UpdootSection";
 
-interface FeatureProps {
-  title: string;
-  desc: string;
+interface UserInfo {
+  updatedAt?: null;
+  createdAt?: null;
+  email?: null;
+  username: string;
+  id: number;
 }
-function Feature({ title, desc, ...rest }: FeatureProps) {
+interface FeatureProps {
+  post: PostSnippetFragment;
+}
+function Feature({ post, ...rest }: FeatureProps) {
   return (
-    <Box
-      p={5}
-      shadow="md"
-      borderWidth="1px"
-      flex="1"
-      width="full"
-      borderRadius="md"
-      {...rest}
-    >
-      <Heading fontSize="xl">{title}</Heading>
-      <Text mt={4}>{desc}</Text>
-    </Box>
+    <HStack spacing={2} justifyContent="flex-start" width="full">
+      <UpdootSection post={post} />
+      <Box
+        p={5}
+        shadow="md"
+        borderWidth="1px"
+        flex="1"
+        width="full"
+        borderRadius="md"
+        {...rest}
+      >
+        <VStack alignItems="flex-start" justifyContent="space-between">
+          <Heading fontSize="xl">{post.title}</Heading>
+          <Text>
+            posted by{" "}
+            <span style={{ color: useToken("colors", "teal.600") }}>
+              {post.creator.username}
+            </span>
+          </Text>
+        </VStack>
+        <Text mt={4}>{post.desc}</Text>
+      </Box>
+    </HStack>
   );
 }
 
 const Index = () => {
   const [variables, setVariables] = useState({
-    limit: 10,
+    limit: 15,
     cursor: null as null | string,
   });
   const [{ fetching, data }] = usePostsQuery({
@@ -82,9 +105,7 @@ const Index = () => {
               {!data ? (
                 <Text fontSize="3xl">no data to display ... </Text>
               ) : (
-                data.posts.posts.map((p) => (
-                  <Feature key={p.title} title={p.title} desc={p.textSnippet} />
-                ))
+                data.posts.posts.map((p) => <Feature key={p.title} post={p} />)
               )}
             </VStack>
           )}
