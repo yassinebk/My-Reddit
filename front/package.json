@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": " NODE_OPTIONS='--inspect' next dev",
     "build": "next build",
     "start": "next start",
     "gen": "graphql-codegen gen"
@@ -16,6 +16,7 @@
     "formik": "^2.2.9",
     "framer-motion": "^4.0.3",
     "graphql": "^15.5.1",
+    "graphql-tag": "^2.12.5",
     "isomorphic-unfetch": "^3.1.0",
     "next": "latest",
     "next-urql": "^3.2.0",

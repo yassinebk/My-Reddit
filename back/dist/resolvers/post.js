@@ -13,10 +13,11 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostResolver = void 0;
-const isAuth_1 = require("../middlewares/isAuth");
+const Updoot_1 = require("../entities/Updoot");
 const type_graphql_1 = require("type-graphql");
-const Post_1 = require("../entities/Post");
 const typeorm_1 = require("typeorm");
+const Post_1 = require("../entities/Post");
+const isAuth_1 = require("../middlewares/isAuth");
 let PostInput = class PostInput {
 };
 __decorate([
@@ -47,13 +48,19 @@ let PostResolver = class PostResolver {
     textSnippet(root) {
         return root.text.slice(0, 50) + ". . . ";
     }
-    async posts(limit, cursor) {
+    async posts(limit, cursor, { req }) {
         const realLimit = Math.min(50, limit);
         console.log(realLimit);
         const realLimitPlusOne = realLimit + 1;
         const replacements = [realLimitPlusOne];
+        if (req.session.userId) {
+            console.log("session.userId", req.session.userId);
+            replacements.push(req.session.userId);
+        }
+        let cursorIndex = 3;
         if (cursor) {
             replacements.push(new Date(parseInt(cursor)));
+            cursorIndex = replacements.length;
         }
         const posts = await typeorm_1.getConnection().query(`
             SELECT p.* ,
@@ -63,22 +70,26 @@ let PostResolver = class PostResolver {
                 'email',u.email,
                 'createdAt',u."createdAt",
                 'updatedAt',u."updatedAt"
-                ) creator
+                ) creator , 
+                ${req.session.userId
+            ? `(SELECT value from updoot where "userId" = $2 and "postId" = p.id) "voteStatus"`
+            : `null as "voteStatus"`}
              FROM post p
             INNER JOIN public.user u on u.id=p."creatorId"
-            ${cursor ? `WHERE p."createdAt"<$2` : ""}
+            ${cursor ? `WHERE p."createdAt"< $${cursorIndex}` : ""}
             ORDER BY p."createdAt" DESC 
             LIMIT $1
             `, replacements);
-        console.log("posts", posts);
         return {
             posts: posts.slice(0, realLimit),
             hasMore: posts.length === limit + 1,
         };
     }
-    post(id) {
-        console.log(id);
-        return Post_1.Post.findOne({ id });
+    async post(id) {
+        console.log("id", id);
+        const post = await Post_1.Post.findOne(id, { relations: ["creator"] });
+        console.log('post', post);
+        return post;
     }
     async createPost(options, { req }) {
         if (!req.session.userId)
@@ -111,18 +122,43 @@ let PostResolver = class PostResolver {
     }
     async vote(value, postId, { req }) {
         const realValue = value !== -1 ? 1 : -1;
+        console.log("realValue:", realValue);
         const { userId } = req.session;
         if (!userId)
             return false;
-        await typeorm_1.getConnection().query(`
-    START TRANSACTION;
-    insert into updoot ("userId", "postId", value)
-    values (${userId},${postId},${realValue});
-    update post
-    set points = points + ${realValue}
-    where id = ${postId};
-    COMMIT;
-    `);
+        const updoot = await Updoot_1.Updoot.findOne({ where: { postId, userId } });
+        console.log("updoot", updoot);
+        if (updoot && updoot.value !== realValue) {
+            await typeorm_1.getConnection().transaction(async (tm) => {
+                await tm.query(`
+        UPDATE updoot
+        SET value =$1
+        WHERE "postId" = $2 and "userId"= $3
+        `, [realValue, postId, userId]);
+                await tm.query(`
+        UPDATE post
+        SET points = points + $1
+        WHERE id = $2`, [2 * realValue, postId]);
+            });
+            return true;
+        }
+        else if (!updoot) {
+            await typeorm_1.getConnection().transaction(async (tm) => {
+                await tm.query(`
+            insert into updoot ("userId", "postId", value)
+            values ($1,$2,$3);
+        `, [userId, postId, realValue]);
+                await tm.query(`
+        update post
+        set points = points + $1
+        where id = $2;
+        `, [realValue, postId]);
+            });
+            return true;
+        }
+        else {
+            return false;
+        }
         return true;
     }
 };
@@ -137,8 +173,9 @@ __decorate([
     type_graphql_1.Query(() => PaginationPosts),
     __param(0, type_graphql_1.Arg("limit", () => type_graphql_1.Int, { nullable: false })),
     __param(1, type_graphql_1.Arg("cursor", () => String, { nullable: true })),
+    __param(2, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object]),
+    __metadata("design:paramtypes", [Number, Object, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "posts", null);
 __decorate([

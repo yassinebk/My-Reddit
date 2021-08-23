@@ -7,9 +7,7 @@ import { isServer } from "../utils/isServer";
 interface NavBarProps {}
 
 export const NavBar: React.FC<NavBarProps> = ({}) => {
-  const [{ data, fetching }] = useMeQuery({
-    pause: isServer(),
-  });
+  const [{ data, fetching }] = useMeQuery();
   const [{ fetching: logoutFetching }, logout] = useLogoutMutation();
   let body = null;
 
@@ -53,8 +51,8 @@ export const NavBar: React.FC<NavBarProps> = ({}) => {
       p={4}
       ml="auto"
       color="whiteAlpha.100"
-      width="full"
       height="fit-content"
+      width="-moz-initial"
       mb={4}
       zIndex={1}
 

@@ -1,33 +1,24 @@
 import {
-  border,
   Box,
   Button,
   Flex,
   Heading,
   HStack,
-  IconButton,
+  Link,
   Spinner,
   Text,
   useToken,
   VStack,
 } from "@chakra-ui/react";
-import { ChevronDownIcon, ChevronUpIcon } from "@chakra-ui/icons";
 import { withUrqlClient } from "next-urql";
 import NextLink from "next/link";
 import React, { useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { Wrapper } from "../components/Wrapper";
-import { usePostsQuery } from "../generated/graphql";
+import { PostSnippetFragment, usePostsQuery } from "../generated/graphql";
 import { createUrqlClient } from "../utils/createUrqlClient";
 import { UpdootSection } from "./UpdootSection";
 
-interface UserInfo {
-  updatedAt?: null;
-  createdAt?: null;
-  email?: null;
-  username: string;
-  id: number;
-}
 interface FeatureProps {
   post: PostSnippetFragment;
 }
@@ -45,15 +36,19 @@ function Feature({ post, ...rest }: FeatureProps) {
         {...rest}
       >
         <VStack alignItems="flex-start" justifyContent="space-between">
-          <Heading fontSize="xl">{post.title}</Heading>
+          <Heading fontSize="xl">
+            <NextLink href="/post/[id]" as={`/post/${post.id}`}>
+              <Link>{post.title}</Link>
+            </NextLink>
+          </Heading>
           <Text>
-            posted by{" "}
+            posted by
             <span style={{ color: useToken("colors", "teal.600") }}>
               {post.creator.username}
             </span>
           </Text>
         </VStack>
-        <Text mt={4}>{post.desc}</Text>
+        <Text mt={4}>{post.textSnippet}</Text>
       </Box>
     </HStack>
   );
@@ -67,7 +62,6 @@ const Index = () => {
   const [{ fetching, data }] = usePostsQuery({
     variables,
   });
-  console.log("data", data);
 
   if (!fetching && !data) {
     return <Heading color="tomato">Website down , reload page</Heading>;
@@ -114,11 +108,11 @@ const Index = () => {
           <Flex justifyContent="flex-end" mt={15}>
             <Button
               isLoading={fetching}
+              variant="solid"
+              borderColor="gray.100"
+              borderWidth={3}
+              colorScheme="blackAlpha"
               onClick={() => {
-                console.log(
-                  "createdAt",
-                  data.posts.posts[data.posts.posts.length - 1].createdAt
-                );
                 setVariables({
                   limit: variables.limit,
                   cursor:
@@ -135,4 +129,4 @@ const Index = () => {
   );
 };
 
-export default withUrqlClient(createUrqlClient, { ssr: false })(Index);
+export default withUrqlClient(createUrqlClient, { ssr: true })(Index);

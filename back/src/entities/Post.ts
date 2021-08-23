@@ -26,13 +26,16 @@ export class Post extends BaseEntity {
   @Column()
   creatorId: number;
 
-  @Field()
+  @Field(() => User)
   @ManyToOne(() => User, (user) => user.posts)
   creator: User;
 
   @Field()
   @Column({ type: "text" })
   title!: string;
+
+  @Field(() => Int, { nullable: true })
+  voteStatus: number | null; // 1 or - 1or null
 
   @Field()
   @Column({ default: 0, type: "int" })

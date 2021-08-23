@@ -1,22 +1,22 @@
-import { isAuth } from "../middlewares/isAuth";
+import { Updoot } from "../entities/Updoot";
 import { MyContext } from "src/types";
 import {
   Arg,
-  Int,
-  Query,
-  Mutation,
-  Resolver,
-  InputType,
-  Field,
   Ctx,
-  UseMiddleware,
+  Field,
   FieldResolver,
-  Root,
+  InputType,
+  Int,
+  Mutation,
   ObjectType,
+  Query,
+  Resolver,
+  Root,
+  UseMiddleware,
 } from "type-graphql";
+import { getConnection, SimpleConsoleLogger } from "typeorm";
 import { Post } from "../entities/Post";
-import { getConnection } from "typeorm";
-import { User } from "../entities/User";
+import { isAuth } from "../middlewares/isAuth";
 
 @InputType()
 class PostInput {
@@ -44,7 +44,8 @@ export class PostResolver {
   @Query(() => PaginationPosts)
   async posts(
     @Arg("limit", () => Int, { nullable: false }) limit: number,
-    @Arg("cursor", () => String, { nullable: true }) cursor: string | null
+    @Arg("cursor", () => String, { nullable: true }) cursor: string | null,
+    @Ctx() { req }: MyContext
   ): Promise<PaginationPosts> {
     //await sleep(5000);
     const realLimit = Math.min(50, limit);
@@ -53,8 +54,14 @@ export class PostResolver {
 
     //we will fetch one post more if the operation succeeds we got more posts in the db
     const replacements: any = [realLimitPlusOne];
+    if (req.session.userId) {
+      console.log("session.userId", req.session.userId);
+      replacements.push(req.session.userId);
+    }
+    let cursorIndex = 3;
     if (cursor) {
       replacements.push(new Date(parseInt(cursor)));
+      cursorIndex = replacements.length;
     }
 
     const posts = await getConnection().query(
@@ -66,28 +73,20 @@ export class PostResolver {
                 'email',u.email,
                 'createdAt',u."createdAt",
                 'updatedAt',u."updatedAt"
-                ) creator
+                ) creator , 
+                ${
+                  req.session.userId
+                    ? `(SELECT value from updoot where "userId" = $2 and "postId" = p.id) "voteStatus"`
+                    : `null as "voteStatus"`
+                }
              FROM post p
             INNER JOIN public.user u on u.id=p."creatorId"
-            ${cursor ? `WHERE p."createdAt"< $2` : ""}
+            ${cursor ? `WHERE p."createdAt"< $${cursorIndex}` : ""}
             ORDER BY p."createdAt" DESC 
             LIMIT $1
             `,
       replacements
     );
-    console.log("posts", posts);
-
-    /* .getRepository(Post)
-        .createQueryBuilder("p")
-        .innerJoinAndSelect("p.creator", "u", 'u.id=p."creatorId"')
-        .orderBy('p."createdAt"', 'DESC')
-        .take(realLimitPlusOne)
-     if (cursor) {
-        qb.where('"createdAt" < :cursor', {
-            cursor: new Date(parseInt(cursor)),
-        });
-    }
-*/
 
     return {
       posts: posts.slice(0, realLimit),
@@ -96,9 +95,12 @@ export class PostResolver {
   }
 
   @Query(() => Post, { nullable: true })
-  post(@Arg("id", () => Int) id: number): Promise<Post | undefined> {
-    console.log(id);
-    return Post.findOne({ id });
+  async post(@Arg("id", () => Int) id: number): Promise<Post | undefined> {
+    console.log("id", id);
+    const post = await Post.findOne(id, { relations: ["creator"] });
+    console.log('post', post);
+    return post;
+    
   }
 
   @Mutation(() => Post)
@@ -151,20 +153,56 @@ export class PostResolver {
     @Ctx() { req }: MyContext
   ) {
     const realValue = value !== -1 ? 1 : -1;
+    console.log("realValue:", realValue);
+
     const { userId } = req.session;
+
     if (!userId) return false;
 
-    await getConnection().query(
-      `
-    START TRANSACTION;
-    insert into updoot ("userId", "postId", value)
-    values (${userId},${postId},${realValue});
-    update post
-    set points = points + ${realValue}
-    where id = ${postId};
-    COMMIT;
-    `
-    );
+    const updoot = await Updoot.findOne({ where: { postId, userId } });
+    console.log("updoot", updoot);
+
+    if (updoot && updoot.value !== realValue) {
+      await getConnection().transaction(async (tm) => {
+        await tm.query(
+          `
+        UPDATE updoot
+        SET value =$1
+        WHERE "postId" = $2 and "userId"= $3
+        `,
+          [realValue, postId, userId]
+        );
+        await tm.query(
+          `
+        UPDATE post
+        SET points = points + $1
+        WHERE id = $2`,
+          [2 * realValue, postId]
+        );
+      });
+      return true;
+    } else if (!updoot) {
+      await getConnection().transaction(async (tm) => {
+        await tm.query(
+          `
+            insert into updoot ("userId", "postId", value)
+            values ($1,$2,$3);
+        `,
+          [userId, postId, realValue]
+        );
+        await tm.query(
+          `
+        update post
+        set points = points + $1
+        where id = $2;
+        `,
+          [realValue, postId]
+        );
+      });
+      return true;
+    } else {
+      return false;
+    }
     return true;
   }
 }

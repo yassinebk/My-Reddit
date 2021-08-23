@@ -89,6 +89,7 @@ export type Post = {
   creatorId: Scalars['Int'];
   creator: User;
   title: Scalars['String'];
+  voteStatus?: Maybe<Scalars['Int']>;
   points: Scalars['Float'];
   text: Scalars['String'];
   createdAt: Scalars['String'];
@@ -140,7 +141,7 @@ export type UsernamePasswordInput = {
   password: Scalars['String'];
 };
 
-export type PostSnippetFragment = { __typename?: 'Post', id: number, creatorId: number, title: string, points: number, text: string, createdAt: string, updatedAt: string, textSnippet: string, creator: { __typename?: 'User', username: string, id: number } };
+export type PostSnippetFragment = { __typename?: 'Post', id: number, creatorId: number, title: string, points: number, text: string, createdAt: string, updatedAt: string, voteStatus?: Maybe<number>, textSnippet: string, creator: { __typename?: 'User', username: string, id: number } };
 
 export type RegularErrorFragment = { __typename?: 'FieldError', field: string, message: string };
 
@@ -203,13 +204,20 @@ export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type MeQuery = { __typename?: 'Query', me?: Maybe<{ __typename?: 'User', id: number, username: string }> };
 
+export type PostQueryVariables = Exact<{
+  id: Scalars['Int'];
+}>;
+
+
+export type PostQuery = { __typename?: 'Query', post?: Maybe<{ __typename?: 'Post', createdAt: string, updatedAt: string, id: number, points: number, voteStatus?: Maybe<number>, text: string, creator: { __typename?: 'User', id: number, username: string } }> };
+
 export type PostsQueryVariables = Exact<{
   limit: Scalars['Int'];
   cursor?: Maybe<Scalars['String']>;
 }>;
 
 
-export type PostsQuery = { __typename?: 'Query', posts: { __typename?: 'PaginationPosts', hasMore: boolean, posts: Array<{ __typename?: 'Post', id: number, creatorId: number, title: string, points: number, text: string, createdAt: string, updatedAt: string, textSnippet: string, creator: { __typename?: 'User', username: string, id: number } }> } };
+export type PostsQuery = { __typename?: 'Query', posts: { __typename?: 'PaginationPosts', hasMore: boolean, posts: Array<{ __typename?: 'Post', id: number, creatorId: number, title: string, points: number, text: string, createdAt: string, updatedAt: string, voteStatus?: Maybe<number>, textSnippet: string, creator: { __typename?: 'User', username: string, id: number } }> } };
 
 import { IntrospectionQuery } from 'graphql';
 export default {
@@ -576,6 +584,14 @@ export default {
             "args": []
           },
           {
+            "name": "voteStatus",
+            "type": {
+              "kind": "SCALAR",
+              "name": "Any"
+            },
+            "args": []
+          },
+          {
             "name": "points",
             "type": {
               "kind": "NON_NULL",
@@ -813,6 +829,7 @@ export const PostSnippetFragmentDoc = gql`
     username
     id
   }
+  voteStatus
   textSnippet
 }
     `;
@@ -924,6 +941,26 @@ export const MeDocument = gql`
 
 export function useMeQuery(options: Omit<Urql.UseQueryArgs<MeQueryVariables>, 'query'> = {}) {
   return Urql.useQuery<MeQuery>({ query: MeDocument, ...options });
+};
+export const PostDocument = gql`
+    query Post($id: Int!) {
+  post(id: $id) {
+    createdAt
+    updatedAt
+    id
+    points
+    voteStatus
+    text
+    creator {
+      id
+      username
+    }
+  }
+}
+    `;
+
+export function usePostQuery(options: Omit<Urql.UseQueryArgs<PostQueryVariables>, 'query'> = {}) {
+  return Urql.useQuery<PostQuery>({ query: PostDocument, ...options });
 };
 export const PostsDocument = gql`
     query Posts($limit: Int!, $cursor: String) {
