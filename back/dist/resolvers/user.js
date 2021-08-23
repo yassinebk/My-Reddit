@@ -85,6 +85,11 @@ UserResponse = __decorate([
     type_graphql_1.ObjectType()
 ], UserResponse);
 let UserResolver = class UserResolver {
+    email(user, { req }) {
+        if (req.session.userId === user.id)
+            return user.email;
+        return "";
+    }
     async register(options, { req }) {
         const errors = validateRegister_1.validateRegister(options);
         if (errors) {
@@ -93,13 +98,17 @@ let UserResolver = class UserResolver {
         const hashedPAssword = await argon2.hash(options.password);
         let user;
         try {
-            const result = await typeorm_1.getConnection().
-                createQueryBuilder().insert().into(User_1.User)
+            const result = await typeorm_1.getConnection()
+                .createQueryBuilder()
+                .insert()
+                .into(User_1.User)
                 .values({
                 username: options.username,
                 email: options.email,
                 password: hashedPAssword,
-            }).returning("*").execute();
+            })
+                .returning("*")
+                .execute();
             user = result.raw[0];
         }
         catch (e) {
@@ -119,11 +128,15 @@ let UserResolver = class UserResolver {
         }
         req.session.userId = user.id;
         return {
-            user
+            user,
         };
     }
     async login(usernameOrEmail, password, { req }) {
-        const user = await User_1.User.findOne({ where: usernameOrEmail.includes("@") ? { email: usernameOrEmail } : { username: usernameOrEmail } });
+        const user = await User_1.User.findOne({
+            where: usernameOrEmail.includes("@")
+                ? { email: usernameOrEmail }
+                : { username: usernameOrEmail },
+        });
         console.log("user", user);
         if (!user) {
             return {
@@ -146,9 +159,9 @@ let UserResolver = class UserResolver {
                 ],
             };
         }
-        console.log('user', user);
+        console.log("user", user);
         req.session.userId = user.id;
-        console.log('session', req.session);
+        console.log("session", req.session);
         return {
             user,
         };
@@ -177,7 +190,7 @@ let UserResolver = class UserResolver {
             return true;
         }
         const token = uuid_1.v4();
-        redis.set(constants_1.FORGET_PASSWORD_PREFIX + token, user.id, 'ex', 1000 * 60 * 60 * 3);
+        redis.set(constants_1.FORGET_PASSWORD_PREFIX + token, user.id, "ex", 1000 * 60 * 60 * 3);
         const resetPasswordLink = `<a href='http://localhost:3000/change-password/${token}'> resetPassword</a>`;
         await sendEmail_1.sendEmail(email, resetPasswordLink);
         return true;
@@ -188,34 +201,35 @@ let UserResolver = class UserResolver {
                 errors: [
                     {
                         field: "newPassword",
-                        message: "length must be greater than 2 "
-                    }
-                ]
+                        message: "length must be greater than 2 ",
+                    },
+                ],
             };
         }
-        ;
         const key = constants_1.FORGET_PASSWORD_PREFIX + token;
         const userIdKey = await redis.get(key);
         if (!userIdKey) {
             return {
-                errors: [{
+                errors: [
+                    {
                         field: "token",
-                        message: 'token expired'
-                    }]
+                        message: "token expired",
+                    },
+                ],
             };
         }
-        ;
         const userId = parseInt(userIdKey);
         const user = await User_1.User.findOne(userId);
         if (!user) {
             return {
-                errors: [{
+                errors: [
+                    {
                         field: "token",
-                        message: 'User no longer exist'
-                    }]
+                        message: "User no longer exist",
+                    },
+                ],
             };
         }
-        ;
         user.password = await argon2.hash(newPassword);
         User_1.User.update({ id: userId }, { password: newPassword });
         req.session.userId = user.id;
@@ -223,6 +237,14 @@ let UserResolver = class UserResolver {
         return { user };
     }
 };
+__decorate([
+    type_graphql_1.FieldResolver(() => String),
+    __param(0, type_graphql_1.Root()),
+    __param(1, type_graphql_1.Ctx()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [User_1.User, Object]),
+    __metadata("design:returntype", void 0)
+], UserResolver.prototype, "email", null);
 __decorate([
     type_graphql_1.Mutation(() => UserResponse),
     __param(0, type_graphql_1.Arg("options")),
@@ -265,14 +287,14 @@ __decorate([
 __decorate([
     type_graphql_1.Mutation(() => UserResponse),
     __param(0, type_graphql_1.Arg("token")),
-    __param(1, type_graphql_1.Arg('newPassword')),
+    __param(1, type_graphql_1.Arg("newPassword")),
     __param(2, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
 ], UserResolver.prototype, "changePassword", null);
 UserResolver = __decorate([
-    type_graphql_1.Resolver()
+    type_graphql_1.Resolver(User_1.User)
 ], UserResolver);
 exports.UserResolver = UserResolver;
 //# sourceMappingURL=user.js.map
