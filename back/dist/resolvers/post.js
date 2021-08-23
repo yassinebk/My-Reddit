@@ -13,10 +13,10 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostResolver = void 0;
-const Updoot_1 = require("../entities/Updoot");
 const type_graphql_1 = require("type-graphql");
 const typeorm_1 = require("typeorm");
 const Post_1 = require("../entities/Post");
+const Updoot_1 = require("../entities/Updoot");
 const isAuth_1 = require("../middlewares/isAuth");
 let PostInput = class PostInput {
 };
@@ -100,18 +100,31 @@ let PostResolver = class PostResolver {
             creatorId: req.session.userId,
         }).save();
     }
-    async updatePost(id, title) {
+    async updatePost(id, title, text, { req }) {
         const post = await Post_1.Post.findOne(id);
         if (!post) {
             return null;
         }
-        if (typeof title !== "undefined") {
-            post.title = title ? title : post.title;
-            await Post_1.Post.update({ id }, { title });
-        }
-        return post;
+        const { raw } = await typeorm_1.getConnection()
+            .createQueryBuilder()
+            .update(Post_1.Post)
+            .set({ title, text })
+            .where(`id= :id AND "creatorId"= :creatorId`, {
+            id,
+            creatorId: req.session.userId,
+        })
+            .returning("*")
+            .execute();
+        return raw[0];
     }
     async deletePost(id, { req }) {
+        const post = await Post_1.Post.findOne(id);
+        if (!post) {
+            return false;
+        }
+        if (post.creatorId !== req.session.userId) {
+            throw new Error("unauthorized access");
+        }
         try {
             await Post_1.Post.delete({ id, creatorId: req.session.userId });
         }
@@ -196,10 +209,13 @@ __decorate([
 ], PostResolver.prototype, "createPost", null);
 __decorate([
     type_graphql_1.Mutation(() => Post_1.Post),
-    __param(0, type_graphql_1.Arg("id")),
+    type_graphql_1.UseMiddleware(isAuth_1.isAuth),
+    __param(0, type_graphql_1.Arg("id", () => type_graphql_1.Int)),
     __param(1, type_graphql_1.Arg("title", () => String)),
+    __param(2, type_graphql_1.Arg("text", () => String)),
+    __param(3, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, String]),
+    __metadata("design:paramtypes", [Number, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "updatePost", null);
 __decorate([

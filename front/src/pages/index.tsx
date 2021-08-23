@@ -1,11 +1,9 @@
-import { DeleteIcon } from "@chakra-ui/icons";
 import {
   Box,
   Button,
   Flex,
   Heading,
   HStack,
-  IconButton,
   Link,
   Spinner,
   Text,
@@ -15,11 +13,11 @@ import {
 import { withUrqlClient } from "next-urql";
 import NextLink from "next/link";
 import React, { useState } from "react";
+import { EditDeletePostButtons } from "../components/EditDeletePostButtons";
 import { NavBar } from "../components/NavBar";
 import { Wrapper } from "../components/Wrapper";
 import {
   PostSnippetFragment,
-  useDeletePostMutation,
   useMeQuery,
   usePostsQuery,
 } from "../generated/graphql";
@@ -31,11 +29,10 @@ interface FeatureProps {
   currentUserId?: number | null;
 }
 function Feature({ post, currentUserId, ...rest }: FeatureProps) {
-  const [, deletePost] = useDeletePostMutation();
   return (
     <HStack spacing={2} justifyContent="flex-start" width="full">
       <UpdootSection post={post} />
-      <Box
+      <HStack
         borderWidth={1}
         borderColor={
           currentUserId === post.creatorId ? "whatsapp.300" : undefined
@@ -44,39 +41,37 @@ function Feature({ post, currentUserId, ...rest }: FeatureProps) {
         shadow="md"
         flex="1"
         width="full"
+        justifyContent="space-between"
         borderRadius="md"
         {...rest}
       >
-        <HStack justify="space-between">
-          <VStack alignItems="flex-start" justifyContent="space-between">
-            <Heading fontSize="xl">
+        <VStack
+          alignItems="flex-start"
+          justifyContent="space-between"
+          spacing={8}
+        >
+          <Flex direction="column" justifyContent="flex-start" textAlign="left">
+            <Heading fontSize="xl" textAlign="left">
               <NextLink href="/post/[id]" as={`/post/${post.id}`}>
                 <Link>{post.title}</Link>
               </NextLink>
             </Heading>
-            <Text>
+            <Text fontSize="sm" mt={2} fontWeight="light" fontStyle="italic">
               posted by {"  "}
               <span style={{ color: useToken("colors", "teal.600") }}>
                 {post.creator.username}
               </span>
             </Text>
-          </VStack>
-          {post.creatorId === currentUserId && (
-            <IconButton
-              alignSelf="flex-start"
-              aria-label="delete-post"
-              icon={<DeleteIcon />}
-              variant="ghost"
-              colorScheme="black"
-              onClick={() => {
-                deletePost({ id: post.id });
-              }}
-            />
-          )}
-        </HStack>
+          </Flex>
+          <Text mt={4}>{post.textSnippet}</Text>
+        </VStack>
 
-        <Text mt={4}>{post.textSnippet}</Text>
-      </Box>
+        {post.creatorId === currentUserId && (
+          <Box alignSelf="flex-start">
+            <EditDeletePostButtons post={post} />
+          </Box>
+        )}
+      </HStack>
     </HStack>
   );
 }
