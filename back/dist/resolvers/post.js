@@ -88,7 +88,7 @@ let PostResolver = class PostResolver {
     async post(id) {
         console.log("id", id);
         const post = await Post_1.Post.findOne(id, { relations: ["creator"] });
-        console.log('post', post);
+        console.log("post", post);
         return post;
     }
     async createPost(options, { req }) {
@@ -111,9 +111,9 @@ let PostResolver = class PostResolver {
         }
         return post;
     }
-    async deletePost(id) {
+    async deletePost(id, { req }) {
         try {
-            await Post_1.Post.delete(id);
+            await Post_1.Post.delete({ id, creatorId: req.session.userId });
         }
         catch (error) {
             return false;
@@ -205,9 +205,10 @@ __decorate([
 __decorate([
     type_graphql_1.Mutation(() => Boolean),
     type_graphql_1.UseMiddleware(isAuth_1.isAuth),
-    __param(0, type_graphql_1.Arg("id")),
+    __param(0, type_graphql_1.Arg("id", () => type_graphql_1.Int, { nullable: false })),
+    __param(1, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "deletePost", null);
 __decorate([

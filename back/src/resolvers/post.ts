@@ -98,9 +98,8 @@ export class PostResolver {
   async post(@Arg("id", () => Int) id: number): Promise<Post | undefined> {
     console.log("id", id);
     const post = await Post.findOne(id, { relations: ["creator"] });
-    console.log('post', post);
+    console.log("post", post);
     return post;
-    
   }
 
   @Mutation(() => Post)
@@ -137,9 +136,19 @@ export class PostResolver {
 
   @Mutation(() => Boolean)
   @UseMiddleware(isAuth)
-  async deletePost(@Arg("id") id: number) {
+  async deletePost(
+    @Arg("id", () => Int, { nullable: false }) id: number,
+    @Ctx() { req }: MyContext
+  ) {
+    const post = await Post.findOne(id);
+    if (!post) {
+      return false;
+    }
+    if (post.creatorId !== req.session.userId) {
+      throw new Error("unauthorized access");
+    }
     try {
-      await Post.delete(id);
+      await Post.delete({ id, creatorId: req.session.userId });
     } catch (error) {
       return false;
     }

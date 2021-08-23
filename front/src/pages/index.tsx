@@ -1,9 +1,11 @@
+import { DeleteIcon } from "@chakra-ui/icons";
 import {
   Box,
   Button,
   Flex,
   Heading,
   HStack,
+  IconButton,
   Link,
   Spinner,
   Text,
@@ -15,39 +17,64 @@ import NextLink from "next/link";
 import React, { useState } from "react";
 import { NavBar } from "../components/NavBar";
 import { Wrapper } from "../components/Wrapper";
-import { PostSnippetFragment, usePostsQuery } from "../generated/graphql";
+import {
+  PostSnippetFragment,
+  useDeletePostMutation,
+  useMeQuery,
+  usePostsQuery,
+} from "../generated/graphql";
 import { createUrqlClient } from "../utils/createUrqlClient";
 import { UpdootSection } from "./UpdootSection";
 
 interface FeatureProps {
   post: PostSnippetFragment;
+  currentUserId?: number | null;
 }
-function Feature({ post, ...rest }: FeatureProps) {
+function Feature({ post, currentUserId, ...rest }: FeatureProps) {
+  const [, deletePost] = useDeletePostMutation();
   return (
     <HStack spacing={2} justifyContent="flex-start" width="full">
       <UpdootSection post={post} />
       <Box
+        borderWidth={1}
+        borderColor={
+          currentUserId === post.creatorId ? "whatsapp.300" : undefined
+        }
         p={5}
         shadow="md"
-        borderWidth="1px"
         flex="1"
         width="full"
         borderRadius="md"
         {...rest}
       >
-        <VStack alignItems="flex-start" justifyContent="space-between">
-          <Heading fontSize="xl">
-            <NextLink href="/post/[id]" as={`/post/${post.id}`}>
-              <Link>{post.title}</Link>
-            </NextLink>
-          </Heading>
-          <Text>
-            posted by
-            <span style={{ color: useToken("colors", "teal.600") }}>
-              {post.creator.username}
-            </span>
-          </Text>
-        </VStack>
+        <HStack justify="space-between">
+          <VStack alignItems="flex-start" justifyContent="space-between">
+            <Heading fontSize="xl">
+              <NextLink href="/post/[id]" as={`/post/${post.id}`}>
+                <Link>{post.title}</Link>
+              </NextLink>
+            </Heading>
+            <Text>
+              posted by {"  "}
+              <span style={{ color: useToken("colors", "teal.600") }}>
+                {post.creator.username}
+              </span>
+            </Text>
+          </VStack>
+          {post.creatorId === currentUserId && (
+            <IconButton
+              alignSelf="flex-start"
+              aria-label="delete-post"
+              icon={<DeleteIcon />}
+              variant="ghost"
+              colorScheme="black"
+              onClick={() => {
+                deletePost({ id: post.id });
+              }}
+            />
+          )}
+        </HStack>
+
         <Text mt={4}>{post.textSnippet}</Text>
       </Box>
     </HStack>
@@ -55,6 +82,7 @@ function Feature({ post, ...rest }: FeatureProps) {
 }
 
 const Index = () => {
+  const [{ data: userData }] = useMeQuery();
   const [variables, setVariables] = useState({
     limit: 15,
     cursor: null as null | string,
@@ -71,20 +99,6 @@ const Index = () => {
       <NavBar />
       <Wrapper variant="regular">
         <Box backgroundColor="whiteAlpha.100">
-          <Flex width="full" justifyContent="space-between">
-            <Heading color="tomato">My-Reddit</Heading>
-            <NextLink href="/create-post">
-              <Button
-                mb="4"
-                width="50%"
-                colorScheme="teal"
-                fontWeight="bold"
-                variant="solid"
-              >
-                Create post
-              </Button>
-            </NextLink>
-          </Flex>
           <br />
           {fetching && !data ? (
             <Spinner
@@ -99,7 +113,15 @@ const Index = () => {
               {!data ? (
                 <Text fontSize="3xl">no data to display ... </Text>
               ) : (
-                data.posts.posts.map((p) => <Feature key={p.title} post={p} />)
+                data.posts.posts.map((p) =>
+                  p ? (
+                    <Feature
+                      currentUserId={userData?.me?.id}
+                      key={p.title}
+                      post={p}
+                    />
+                  ) : null
+                )
               )}
             </VStack>
           )}
@@ -111,7 +133,7 @@ const Index = () => {
               variant="solid"
               borderColor="gray.100"
               borderWidth={3}
-              colorScheme="blackAlpha"
+              colorScheme="black"
               onClick={() => {
                 setVariables({
                   limit: variables.limit,
