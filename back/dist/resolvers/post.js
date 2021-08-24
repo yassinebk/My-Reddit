@@ -17,6 +17,7 @@ const type_graphql_1 = require("type-graphql");
 const typeorm_1 = require("typeorm");
 const Post_1 = require("../entities/Post");
 const Updoot_1 = require("../entities/Updoot");
+const User_1 = require("../entities/User");
 const isAuth_1 = require("../middlewares/isAuth");
 let PostInput = class PostInput {
 };
@@ -48,35 +49,33 @@ let PostResolver = class PostResolver {
     textSnippet(root) {
         return root.text.slice(0, 50) + ". . . ";
     }
-    async posts(limit, cursor, { req }) {
+    creator(post, { userLoader }) {
+        return userLoader.load(post.creatorId);
+    }
+    async voteStatus(post, { updootLoader, req }) {
+        if (!req.session.userId) {
+            return null;
+        }
+        const updoot = await updootLoader.load({
+            postId: post.id,
+            userId: req.session.userId,
+        });
+        return updoot ? updoot.value : null;
+    }
+    async posts(limit, cursor) {
         const realLimit = Math.min(50, limit);
         console.log(realLimit);
         const realLimitPlusOne = realLimit + 1;
         const replacements = [realLimitPlusOne];
-        if (req.session.userId) {
-            console.log("session.userId", req.session.userId);
-            replacements.push(req.session.userId);
-        }
-        let cursorIndex = 3;
         if (cursor) {
             replacements.push(new Date(parseInt(cursor)));
-            cursorIndex = replacements.length;
         }
+        console.log('cursor', cursor);
+        console.log('replacements', replacements);
         const posts = await typeorm_1.getConnection().query(`
-            SELECT p.* ,
-            json_build_object(
-                'username',u.username,
-                'id',u.id,
-                'email',u.email,
-                'createdAt',u."createdAt",
-                'updatedAt',u."updatedAt"
-                ) creator , 
-                ${req.session.userId
-            ? `(SELECT value from updoot where "userId" = $2 and "postId" = p.id) "voteStatus"`
-            : `null as "voteStatus"`}
+            SELECT p.* 
              FROM post p
-            INNER JOIN public.user u on u.id=p."creatorId"
-            ${cursor ? `WHERE p."createdAt"< $${cursorIndex}` : ""}
+            ${cursor ? 'WHERE p."createdAt"< $2' : ""}
             ORDER BY p."createdAt" DESC 
             LIMIT $1
             `, replacements);
@@ -87,9 +86,7 @@ let PostResolver = class PostResolver {
     }
     async post(id) {
         console.log("id", id);
-        const post = await Post_1.Post.findOne(id, { relations: ["creator"] });
-        console.log("post", post);
-        return post;
+        return Post_1.Post.findOne(id);
     }
     async createPost(options, { req }) {
         if (!req.session.userId)
@@ -183,12 +180,27 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PostResolver.prototype, "textSnippet", null);
 __decorate([
+    type_graphql_1.FieldResolver(() => User_1.User),
+    __param(0, type_graphql_1.Root()),
+    __param(1, type_graphql_1.Ctx()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Post_1.Post, Object]),
+    __metadata("design:returntype", void 0)
+], PostResolver.prototype, "creator", null);
+__decorate([
+    type_graphql_1.FieldResolver(() => type_graphql_1.Int, { nullable: true }),
+    __param(0, type_graphql_1.Root()),
+    __param(1, type_graphql_1.Ctx()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Post_1.Post, Object]),
+    __metadata("design:returntype", Promise)
+], PostResolver.prototype, "voteStatus", null);
+__decorate([
     type_graphql_1.Query(() => PaginationPosts),
     __param(0, type_graphql_1.Arg("limit", () => type_graphql_1.Int, { nullable: false })),
     __param(1, type_graphql_1.Arg("cursor", () => String, { nullable: true })),
-    __param(2, type_graphql_1.Ctx()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, Object]),
+    __metadata("design:paramtypes", [Number, Object]),
     __metadata("design:returntype", Promise)
 ], PostResolver.prototype, "posts", null);
 __decorate([

@@ -7,6 +7,7 @@ import {
   Link,
   Spinner,
   Text,
+  useColorModeValue,
   useToken,
   VStack,
 } from "@chakra-ui/react";
@@ -31,7 +32,7 @@ interface FeatureProps {
 function Feature({ post, currentUserId, ...rest }: FeatureProps) {
   return (
     <HStack spacing={2} justifyContent="flex-start" width="full">
-      <UpdootSection post={post} />
+      <UpdootSection post={post} authorized={!!currentUserId} />
       <HStack
         borderWidth={1}
         borderColor={
@@ -89,11 +90,14 @@ const Index = () => {
   if (!fetching && !data) {
     return <Heading color="tomato">Website down , reload page</Heading>;
   }
+  const bg = useColorModeValue("gray.50", "gray.900");
+  const color = useColorModeValue("gray.900", "gray.50");
+
   return (
-    <Box backgroundColor="whiteAlpha.100">
+    <Box backgroundColor={bg} color={color}>
       <NavBar />
       <Wrapper variant="regular">
-        <Box backgroundColor="whiteAlpha.100">
+        <Box>
           <br />
           {fetching && !data ? (
             <Spinner
@@ -128,7 +132,7 @@ const Index = () => {
               variant="solid"
               borderColor="gray.100"
               borderWidth={3}
-              colorScheme="black"
+              colorScheme="gray"
               onClick={() => {
                 setVariables({
                   limit: variables.limit,

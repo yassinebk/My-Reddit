@@ -3,22 +3,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-require("reflect-metadata");
-const constants_1 = require("./constants");
-const express_1 = __importDefault(require("express"));
 const apollo_server_express_1 = require("apollo-server-express");
-const type_graphql_1 = require("type-graphql");
-const post_1 = require("./resolvers/post");
-const user_1 = require("./resolvers/user");
-const ioredis_1 = __importDefault(require("ioredis"));
-const express_session_1 = __importDefault(require("express-session"));
 const connect_redis_1 = __importDefault(require("connect-redis"));
 const cors_1 = __importDefault(require("cors"));
-const typeorm_1 = require("typeorm");
-const User_1 = require("./entities/User");
-const Post_1 = require("./entities/Post");
+const express_1 = __importDefault(require("express"));
+const express_session_1 = __importDefault(require("express-session"));
+const ioredis_1 = __importDefault(require("ioredis"));
 const path_1 = __importDefault(require("path"));
+require("reflect-metadata");
+const type_graphql_1 = require("type-graphql");
+const typeorm_1 = require("typeorm");
+const constants_1 = require("./constants");
+const Post_1 = require("./entities/Post");
 const Updoot_1 = require("./entities/Updoot");
+const User_1 = require("./entities/User");
+const post_1 = require("./resolvers/post");
+const user_1 = require("./resolvers/user");
+const createUpdootLoader_1 = require("./utils/createUpdootLoader");
+const createUserLoader_1 = require("./utils/createUserLoader");
 const main = async () => {
     const conn = await typeorm_1.createConnection({
         type: "postgres",
@@ -61,7 +63,13 @@ const main = async () => {
             validate: false,
         }),
         debug: true,
-        context: ({ req, res }) => ({ req, res, redis }),
+        context: ({ req, res }) => ({
+            req,
+            res,
+            redis,
+            userLoader: createUserLoader_1.createUserLoader(),
+            updootLoader: createUpdootLoader_1.createUpdootLoader()
+        }),
     });
     await apolloServer.start();
     apolloServer.applyMiddleware({

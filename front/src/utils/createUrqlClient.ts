@@ -1,4 +1,4 @@
-import { cacheExchange, Resolver } from "@urql/exchange-graphcache";
+import { cacheExchange, Resolver, Cache } from "@urql/exchange-graphcache";
 import gql from "graphql-tag";
 import Router from "next/router";
 import {
@@ -19,6 +19,17 @@ import {
 } from "../generated/graphql";
 import { betterUpdateQuery } from "./betterUpdateQuery";
 import { isServer } from "./isServer";
+
+
+const invalidateAllposts = (cache: Cache) => {
+  const allFields = cache.inspectFields("Query");
+  const fieldInfos = allFields.filter(
+    (info) => info.fieldName === "posts"
+  );
+  fieldInfos.forEach((fi) =>
+    cache.invalidate("Query", "posts", fi.arguments || {})
+  );
+}
 
 export const createUrqlClient = (ssrExchange: any, ctx: any) => {
   let cookie = "";
@@ -82,20 +93,16 @@ export const createUrqlClient = (ssrExchange: any, ctx: any) => {
               }
             },
             createPost: (_result, args, cache, info) => {
-              const allFields = cache.inspectFields("Query");
-              const fieldInfos = allFields.filter(
-                (info) => info.fieldName === "posts"
-              );
-              fieldInfos.forEach((fi) =>
-                cache.invalidate("Query", "posts", fi.arguments || {})
-              );
+              invalidateAllposts(cache);
             },
             login: (_result, args, cache, info) => {
+
               betterUpdateQuery<LoginMutation, MeQuery>(
                 cache,
                 { query: MeDocument },
                 _result,
                 (result, query) => {
+
                   if (result.login.errors) {
                     return query;
                   } else {
@@ -105,6 +112,8 @@ export const createUrqlClient = (ssrExchange: any, ctx: any) => {
                   }
                 }
               );
+
+              invalidateAllposts(cache);
             },
             register: (_result, args, cache, info) => {
               betterUpdateQuery<RegisterMutation, MeQuery>(
@@ -143,16 +152,16 @@ export const createUrqlClient = (ssrExchange: any, ctx: any) => {
 
 const errorExchange: Exchange =
   ({ forward }) =>
-  (ops$) => {
-    return pipe(
-      forward(ops$),
-      tap(({ error }) => {
-        if (error?.message.includes("not authenticated")) {
-          Router.replace("/login");
-        }
-      })
-    );
-  };
+    (ops$) => {
+      return pipe(
+        forward(ops$),
+        tap(({ error }) => {
+          if (error?.message.includes("not authenticated")) {
+            Router.replace("/login");
+          }
+        })
+      );
+    };
 
 export type MergeMode = "before" | "after";
 

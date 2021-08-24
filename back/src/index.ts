@@ -1,20 +1,22 @@
-import "reflect-metadata";
-import { __dev__, PORT, COOKIE_NAME } from "./constants";
-import express from "express";
 import { ApolloServer } from "apollo-server-express";
+import connectRedis from "connect-redis";
+import cors from "cors";
+import express from "express";
+import session from "express-session";
+import Redis from "ioredis";
+import path from "path";
+import "reflect-metadata";
 import { buildSchema } from "type-graphql";
+import { createConnection } from "typeorm";
+import { COOKIE_NAME, PORT } from "./constants";
+import { Post } from "./entities/Post";
+import { Updoot } from "./entities/Updoot";
+import { User } from "./entities/User";
 import { PostResolver } from "./resolvers/post";
 import { UserResolver } from "./resolvers/user";
-import Redis from "ioredis";
-import session from "express-session";
-import connectRedis from "connect-redis";
 import { MyContext } from "./types";
-import cors from "cors";
-import { createConnection } from "typeorm";
-import { User } from "./entities/User";
-import { Post } from "./entities/Post";
-import path from "path";
-import { Updoot } from "./entities/Updoot";
+import { createUpdootLoader } from "./utils/createUpdootLoader";
+import { createUserLoader } from "./utils/createUserLoader";
 
 const main = async () => {
   const conn = await createConnection({
@@ -28,6 +30,7 @@ const main = async () => {
     entities: [User, Post, Updoot],
   });
   await conn.runMigrations({ transaction: "all" });
+  // resetting the background
   //await Post.delete({});
 
   const app = express();
@@ -66,7 +69,13 @@ const main = async () => {
       validate: false,
     }),
     debug: true,
-    context: ({ req, res }): MyContext => ({ req, res, redis }),
+    context: ({ req, res }): MyContext => ({
+      req,
+      res,
+      redis,
+      userLoader: createUserLoader(),
+      updootLoader:createUpdootLoader()
+    }),
   });
   await apolloServer.start();
   apolloServer.applyMiddleware({

@@ -1,5 +1,6 @@
 import React from "react";
 import { Box } from "@chakra-ui/layout";
+import { useColorModeValue } from "@chakra-ui/react";
 
 export type WrapperVariant = "small" | "regular";
 interface WrapperProps {
@@ -17,8 +18,6 @@ export const Wrapper: React.FC<WrapperProps> = ({
       mt={16}
       width="100%"
       mx="auto"
-      height="auto"
-      backgroundColor="whiteAlpha.100"
       py={8}
     >
       {children}

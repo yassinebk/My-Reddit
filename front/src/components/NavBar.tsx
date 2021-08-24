@@ -1,15 +1,25 @@
 import {
-  Box, Button,
-  Flex, Heading, HStack,
-  Link, useToken
+  Box,
+  Button,
+  Flex,
+  Heading,
+  HStack,
+  IconButton,
+  Link,
+  useColorMode,
+  useToken,
 } from "@chakra-ui/react";
 import NextLink from "next/link";
 import React from "react";
+import { useRouter } from "next/router";
 import { useLogoutMutation, useMeQuery } from "../generated/graphql";
+import { MoonIcon, SunIcon } from "@chakra-ui/icons";
 
 interface NavBarProps {}
 
 export const NavBar: React.FC<NavBarProps> = ({}) => {
+  const { colorMode, toggleColorMode } = useColorMode();
+  const router = useRouter();
   const [{ data, fetching }] = useMeQuery();
   const [{ fetching: logoutFetching }, logout] = useLogoutMutation();
   let body = null;
@@ -18,14 +28,20 @@ export const NavBar: React.FC<NavBarProps> = ({}) => {
     return body;
   } else if (!data?.me) {
     body = (
-      <Box>
+      <HStack spacing={4}>
         <NextLink href="/login">
           <Link mr={8}>Sign in</Link>
         </NextLink>
         <NextLink href="/register">
           <Link> Sign up</Link>
         </NextLink>
-      </Box>
+        <IconButton
+          aria-label="color mode toggle"
+          variant="outline"
+          icon={colorMode === "light" ? <SunIcon /> : <MoonIcon />}
+          onClick={toggleColorMode}
+        />
+      </HStack>
     );
   } else {
     body = (
@@ -55,12 +71,20 @@ export const NavBar: React.FC<NavBarProps> = ({}) => {
           </Button>
         </NextLink>
 
+        <IconButton
+          aria-label="color mode toggle"
+          variant="outline"
+          icon={colorMode === "light" ? <SunIcon /> : <MoonIcon />}
+          onClick={toggleColorMode}
+        />
+
         <Button
           variant="solid"
           colorScheme="red"
           fontSize="sm"
-          onClick={() => {
-            logout();
+          onClick={async () => {
+            await logout();
+            router.reload();
           }}
           isLoading={logoutFetching}
         >
@@ -71,6 +95,7 @@ export const NavBar: React.FC<NavBarProps> = ({}) => {
   }
   return (
     <Flex
+      maxHeight="80px"
       position="sticky"
       top={0}
       bg="teal.900"
@@ -90,6 +115,7 @@ export const NavBar: React.FC<NavBarProps> = ({}) => {
         justifyContent="space-between"
         width="full"
         px={4}
+        flexDir="row"
       >
         <NextLink href="/">
           <Button variant="link">
